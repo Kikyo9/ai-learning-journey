@@ -16,4 +16,6 @@ env/
 
 # 系统文件
 .DS_Store
-Thumbs.db
+Thumbs.dbapi_key.txt
+.env
+chroma_db/
