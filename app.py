@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-RAG 知识库问答 Web 应用（最终稳定版）
+RAG 知识库问答 Web 应用（诊断增强版）
 """
 
 import os
@@ -24,7 +24,6 @@ load_dotenv()
 API_KEY = os.getenv("DEEPSEEK_API_KEY")
 API_URL = "https://api.deepseek.com/v1/chat/completions"
 
-# 页面配置必须放在最顶部
 st.set_page_config(page_title="📚 PDF 智能问答", page_icon="🤖", layout="wide")
 
 @st.cache_resource(show_spinner=False)
@@ -40,22 +39,30 @@ def main():
     st.title("📚 PDF 知识库问答机器人")
     st.markdown("上传任意 PDF 文件，即可针对内容进行智能问答。")
 
-    # 初始化会话状态
+    # 初始化会话状态（确保即使重新运行也不丢失）
     if "vector_store" not in st.session_state:
         st.session_state.vector_store = None
     if "messages" not in st.session_state:
         st.session_state.messages = []
     if "file_processed" not in st.session_state:
         st.session_state.file_processed = False
+    if "last_file_name" not in st.session_state:
+        st.session_state.last_file_name = None
 
     with st.sidebar:
         st.header("📁 1. 上传 PDF")
         uploaded_file = st.file_uploader("选择一个 PDF 文件（支持中文）", type=["pdf"])
 
+        # 显示当前向量库状态（调试用）
+        if st.session_state.vector_store is None:
+            st.warning("⚠️ 当前没有加载任何向量库，请上传 PDF。")
+        else:
+            st.success(f"✅ 向量库已就绪，文件：{st.session_state.last_file_name}")
+
         if uploaded_file is not None:
-            current_file_name = uploaded_file.name
-            if "last_file_name" not in st.session_state or st.session_state.last_file_name != current_file_name:
-                st.session_state.last_file_name = current_file_name
+            # 检查是否需要重新处理（文件名变化或向量库为空）
+            if st.session_state.vector_store is None or st.session_state.last_file_name != uploaded_file.name:
+                st.session_state.last_file_name = uploaded_file.name
 
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
                     tmp_file.write(uploaded_file.getvalue())
@@ -86,9 +93,11 @@ def main():
                         os.unlink(tmp_path)
 
                         st.success(f"✅ 成功加载 {total_pages} 页，切分为 {total_chunks} 个文本块")
+                        st.rerun()  # 强制刷新界面，更新状态显示
                     except Exception as e:
                         st.error(f"❌ 处理 PDF 时出错：{str(e)}")
                         st.session_state.file_processed = False
+                        st.session_state.vector_store = None
 
         if st.session_state.get("file_processed"):
             st.info(f"📄 当前文件：{st.session_state.last_file_name}")
