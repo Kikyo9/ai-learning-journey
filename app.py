@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-RAG 知识库问答 Web 应用（诊断增强版）
+RAG 知识库问答 Web 应用（云端依赖修复版）
 """
 
 import os
@@ -10,14 +10,12 @@ import streamlit as st
 from dotenv import load_dotenv
 import requests
 
+warnings.filterwarnings("ignore", category=UserWarning, module="torch")
+
+# 彻底设置缓存目录，避免权限和冲突
 os.environ['HF_HOME'] = '/tmp/.hf_cache'
 os.environ['TRANSFORMERS_CACHE'] = '/tmp/.hf_cache'
 os.environ['SENTENCE_TRANSFORMERS_HOME'] = '/tmp/.st_cache'
-
-warnings.filterwarnings("ignore", category=UserWarning, module="torch")
-
-os.environ['HF_HOME'] = '/tmp/.hf_cache'
-os.environ['TRANSFORMERS_CACHE'] = '/tmp/.hf_cache'
 
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -35,7 +33,7 @@ def load_embedding_model():
     try:
         import sentence_transformers
     except ImportError as e:
-        st.error("❌ 云端缺少 sentence-transformers，请检查依赖。尝试重启应用。")
+        st.error("❌ 云端环境缺少 sentence-transformers 库。请重启应用或检查 requirements.txt。")
         st.stop()
     with st.spinner("⏳ 首次运行正在下载 Embedding 模型（约 400MB），请稍候..."):
         return HuggingFaceEmbeddings(
@@ -48,7 +46,6 @@ def main():
     st.title("📚 PDF 知识库问答机器人")
     st.markdown("上传任意 PDF 文件，即可针对内容进行智能问答。")
 
-    # 初始化会话状态（确保即使重新运行也不丢失）
     if "vector_store" not in st.session_state:
         st.session_state.vector_store = None
     if "messages" not in st.session_state:
@@ -62,14 +59,12 @@ def main():
         st.header("📁 1. 上传 PDF")
         uploaded_file = st.file_uploader("选择一个 PDF 文件（支持中文）", type=["pdf"])
 
-        # 显示当前向量库状态（调试用）
         if st.session_state.vector_store is None:
             st.warning("⚠️ 当前没有加载任何向量库，请上传 PDF。")
         else:
             st.success(f"✅ 向量库已就绪，文件：{st.session_state.last_file_name}")
 
         if uploaded_file is not None:
-            # 检查是否需要重新处理（文件名变化或向量库为空）
             if st.session_state.vector_store is None or st.session_state.last_file_name != uploaded_file.name:
                 st.session_state.last_file_name = uploaded_file.name
 
@@ -102,7 +97,7 @@ def main():
                         os.unlink(tmp_path)
 
                         st.success(f"✅ 成功加载 {total_pages} 页，切分为 {total_chunks} 个文本块")
-                        st.rerun()  # 强制刷新界面，更新状态显示
+                        st.rerun()
                     except Exception as e:
                         st.error(f"❌ 处理 PDF 时出错：{str(e)}")
                         st.session_state.file_processed = False
