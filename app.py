@@ -10,6 +10,10 @@ import streamlit as st
 from dotenv import load_dotenv
 import requests
 
+os.environ['HF_HOME'] = '/tmp/.hf_cache'
+os.environ['TRANSFORMERS_CACHE'] = '/tmp/.hf_cache'
+os.environ['SENTENCE_TRANSFORMERS_HOME'] = '/tmp/.st_cache'
+
 warnings.filterwarnings("ignore", category=UserWarning, module="torch")
 
 os.environ['HF_HOME'] = '/tmp/.hf_cache'
@@ -28,6 +32,11 @@ st.set_page_config(page_title="📚 PDF 智能问答", page_icon="🤖", layout=
 
 @st.cache_resource(show_spinner=False)
 def load_embedding_model():
+    try:
+        import sentence_transformers
+    except ImportError as e:
+        st.error("❌ 云端缺少 sentence-transformers，请检查依赖。尝试重启应用。")
+        st.stop()
     with st.spinner("⏳ 首次运行正在下载 Embedding 模型（约 400MB），请稍候..."):
         return HuggingFaceEmbeddings(
             model_name="sentence-transformers/all-MiniLM-L6-v2",
